@@ -7,44 +7,57 @@
 //
 
 import UIKit
-import SpriteKit
-import GameplayKit
+import RxSwift
+import RxCocoa
 
-class GameViewController: UIViewController {
+class Data {
+    var tag: Int = 0
+    var turn: Int = 0
+}
+
+class GameViewController: UIViewController, UIGestureRecognizerDelegate, MyImageViewDelegate {
+
+    @IBOutlet weak var board: UIStackView!
+    
+    private let boardTapped = PublishRelay<Data>()
+
+    private let disposeBag = DisposeBag()
+    
+    lazy var viewModel = ViewModel(
+        boardTappedXObservable: boardTapped.asObservable(), model: Model()
+    )
+
+    var turn = 0
 
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        if let view = self.view as! SKView? {
-            // Load the SKScene from 'GameScene.sks'
-            if let scene = SKScene(fileNamed: "GameScene") {
-                // Set the scale mode to scale to fit the window
-                scene.scaleMode = .aspectFill
-                
-                // Present the scene
-                view.presentScene(scene)
+        self.boardTapped.subscribe(onNext: { data in
+            let v = self.board.subviews[data.tag / 8].subviews[data.tag % 8] as! MyImageView
+            if data.turn % 2 == 0 {
+                self.viewModel.put1.bind(to: v.rx.backgroundColor).disposed(by: self.disposeBag)
+            } else {
+                self.viewModel.put2.bind(to: v.rx.backgroundColor).disposed(by: self.disposeBag)
             }
-            
-            view.ignoresSiblingOrder = true
-            
-            view.showsFPS = true
-            view.showsNodeCount = true
+        }).disposed(by: disposeBag)
+        
+        var tagCount = 0
+        for views in board.subviews {
+            for view in views.subviews {
+                let v = view as! MyImageView
+                v.delegate = self   
+                v.tag = tagCount
+                viewModel.background.bind(to: v.rx.backgroundColor).disposed(by: disposeBag)
+                tagCount += 1
+            }
         }
     }
-
-    override var shouldAutorotate: Bool {
-        return true
-    }
-
-    override var supportedInterfaceOrientations: UIInterfaceOrientationMask {
-        if UIDevice.current.userInterfaceIdiom == .phone {
-            return .allButUpsideDown
-        } else {
-            return .all
-        }
-    }
-
-    override var prefersStatusBarHidden: Bool {
-        return true
+    
+    func touchBeganInside(tag: Int) {
+        let data = Data()
+        data.tag = tag
+        turn += 1
+        data.turn = turn
+        boardTapped.accept(data)
     }
 }

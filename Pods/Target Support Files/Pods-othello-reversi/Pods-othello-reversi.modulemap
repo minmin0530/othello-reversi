@@ -1,0 +1,6 @@
+framework module Pods_othello_reversi {
+  umbrella header "Pods-othello-reversi-umbrella.h"
+
+  export *
+  module * { export * }
+}
